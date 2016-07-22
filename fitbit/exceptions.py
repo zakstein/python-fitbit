@@ -18,8 +18,10 @@ class DeleteError(Exception):
 class HTTPException(Exception):
     def __init__(self, response, *args, **kwargs):
         try:
-            errors = json.loads(response.content.decode('utf8'))['errors']
-            message = '\n'.join([error['message'] for error in errors])
+            self.raw_response = response.content.decode('utf8')
+            self.json_response = json.loads(response.content.decode('utf8'))
+            self.errors = json.loads(response.content.decode('utf8'))['errors']
+            message = '\n'.join([error['message'] for error in self.errors])
         except Exception:
             if hasattr(response, 'status_code') and response.status_code == 401:
                 message = response.content.decode('utf8')
