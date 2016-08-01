@@ -21,6 +21,16 @@ class HTTPException(Exception):
             self.raw_response = response.content.decode('utf8')
             self.json_response = json.loads(response.content.decode('utf8'))
             self.errors = json.loads(response.content.decode('utf8'))['errors']
+            self.response_status_code = response.status_code
+            try:
+                self.first_check_passed = self.json_response['errors'][0]['errorType'] == 'expired_token'
+            except:
+                self.first_check_passed = False
+            try:
+                self.second_check_passed = self.json_response['errors'][0]['message'].find('Access token expired:') == 0
+            except:
+                self.second_check_passed = False
+
             message = '\n'.join([error['message'] for error in self.errors])
         except Exception:
             if hasattr(response, 'status_code') and response.status_code == 401:
