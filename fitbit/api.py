@@ -60,6 +60,12 @@ class FitbitOauth2Client(object):
 
         https://wiki.fitbit.com/display/API/API+Response+Format+And+Errors
         """
+        # DEBUGGING
+        caught_inital_exception = False
+        pre_refresh_token = self.token.copy()
+        token_after_first_refresh = None
+        token_after_second_refresh = None
+        caught_second_exception = False
         if not method:
             method = 'POST' if data else 'GET'
 
@@ -67,7 +73,9 @@ class FitbitOauth2Client(object):
             auth = OAuth2(client_id=self.client_id, token=self.token)
             response = self._request(method, url, data=data, auth=auth, **kwargs)
         except HTTPUnauthorized as e:
+            caught_inital_exception = True
             self.refresh_token()
+            token_after_first_refresh = self.token.copy()
             auth = OAuth2(client_id=self.client_id, token=self.token)
             response = self._request(method, url, data=data, auth=auth, **kwargs)
 
@@ -77,16 +85,22 @@ class FitbitOauth2Client(object):
         if response.status_code == 401:
             d = json.loads(response.content.decode('utf8'))
             try:
-                if(d['errors'][0]['errorType'] == 'expired_token' and
-                    d['errors'][0]['message'].find('Access token expired:') == 0):
-                        self.refresh_token()
-                        auth = OAuth2(client_id=self.client_id, token=self.token)
-                        response = self._request(method, url, data=data, auth=auth, **kwargs)
+                if (d['errors'][0]['errorType'] == 'expired_token' and
+                            d['errors'][0]['message'].find('Access token expired:') == 0):
+                    self.refresh_token()
+                    token_after_second_refresh = self.token.copy()
+                    auth = OAuth2(client_id=self.client_id, token=self.token)
+                    response = self._request(method, url, data=data, auth=auth, **kwargs)
             except:
-                pass
+                caught_second_exception = True
 
         if response.status_code == 401:
-            raise HTTPUnauthorized(response)
+            raise HTTPUnauthorized(response, caught_inital_exception=caught_inital_exception,
+                                   pre_refresh_token=pre_refresh_token,
+                                   token_after_first_refresh=token_after_first_refresh,
+                                   token_after_second_refresh=token_after_second_refresh,
+                                   caught_second_exception=caught_second_exception
+                                   )
         elif response.status_code == 403:
             raise HTTPForbidden(response)
         elif response.status_code == 404:
@@ -133,7 +147,7 @@ class FitbitOauth2Client(object):
         out = self.oauth.authorization_url(self.authorization_url, **kwargs)
         self.oauth.scope = old_scope
         self.oauth.redirect_uri = old_redirect
-        return(out)
+        return (out)
 
     def fetch_access_token(self, code, redirect_uri):
 
