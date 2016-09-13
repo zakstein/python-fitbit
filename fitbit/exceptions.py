@@ -30,7 +30,7 @@ class HTTPException(Exception):
                 message = response.content.decode('utf8')
             else:
                 message = response
-        super(HTTPException, self).__init__(message, *args, **kwargs)
+        super(HTTPException, self).__init__(message, *args)
 
 
 class HTTPBadRequest(HTTPException):
